@@ -1,1 +1,181 @@
+# Import necessary libraries 6.1
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import numpy as np
+
+# ------------------------------------
+# Example input feature map
+# ------------------------------------
+input_layer = layers.Input(shape=(28, 28, 1))
+
+# Convolution layer
+x = layers.Conv2D(32, (3, 3), activation='relu')(input_layer)
+
+# Max Pooling layer
+max_pool = layers.MaxPooling2D(pool_size=(3, 3), strides=2)(x)
+
+# Average Pooling layer
+avg_pool = layers.AveragePooling2D(pool_size=(4, 4), strides=2)(x)
+
+# Create models
+model_max = models.Model(inputs=input_layer, outputs=max_pool)
+model_avg = models.Model(inputs=input_layer, outputs=avg_pool)
+
+# ------------------------------------
+# Create a dummy test image (28x28)
+# ------------------------------------
+sample = np.random.rand(1, 28, 28, 1)
+
+# Compute pooled outputs
+max_output = model_max.predict(sample)
+avg_output = model_avg.predict(sample)
+
+# Display output shapes
+print("Max Pooling Output Shape:", max_output.shape)
+print("Average Pooling Output Shape:", avg_output.shape)
+
+#Residual block without dropout 6.2
+import tensorflow as tf
+from tensorflow.keras.layers import Conv2D, Input, Add, Dropout, UpSampling2D
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+
+# Residual Block with Dropout
+def residual_block(x, filters=64, kernel_size=3, dropout_rate=0.25):
+    skip = x
+
+    x = Conv2D(filters, kernel_size, padding='same', activation='relu')(x)
+    x = Dropout(dropout_rate)(x)   # Dropout applied
+    x = Conv2D(filters, kernel_size, padding='same')(x)
+
+    x = Add()([skip, x])
+    return x
+#Super-Resolution CNN Model with Dropout
+def build_sr_model(input_shape=(64, 64, 3), num_residual_blocks=8, dropout_rate=0.25):
+    inp = Input(shape=input_shape)
+
+    # Shallow feature extraction
+    x = Conv2D(64, 3, padding='same', activation='relu')(inp)
+    skip_connection = x
+
+    # Residual blocks
+    for _ in range(num_residual_blocks):
+        x = residual_block(x, filters=64, dropout_rate=dropout_rate)
+
+    # Feature fusion
+    x = Add()([x, skip_connection])
+
+    # Upsampling
+    x = UpSampling2D(size=(2, 2))(x)
+    x = Conv2D(64, 3, padding='same', activation='relu')(x)
+
+    # Reconstruction
+    out = Conv2D(3, 3, padding='same', activation='sigmoid')(x)
+
+    model = Model(inputs=inp, outputs=out)
+    return model
+#Compile the Model
+model = build_sr_model(
+    input_shape=(64, 64, 3),
+    num_residual_blocks=8,
+    dropout_rate=0.25
+)
+
+model.compile(
+    optimizer=Adam(learning_rate=1e-4),
+    loss='mse',
+    metrics=['mae']
+)
+
+model.summary()
+#Training
+import numpy as np
+
+# Dummy training data
+Xtrain = np.random.rand(100, 64, 64, 3)
+Ytrain = np.random.rand(100, 128, 128, 3)
+
+history = model.fit(
+    Xtrain,
+    Ytrain,
+    batch_size=8,
+    epochs=6,
+    validation_split=0.1
+)
+
+
+
+#6.3
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.datasets import mnist
+
+# Load MNIST dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+# Normalize pixel values
+x_train = x_train / 255.0
+x_test = x_test / 255.0
+
+# -------------------------------
+# Model A – Without Dropout
+# -------------------------------
+model_no_dropout = Sequential([
+    Flatten(input_shape=(28, 28)),
+    Dense(256, activation='relu'),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model_no_dropout.compile(
+    optimizer=Adam(learning_rate=1e-3),
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# -------------------------------
+# Model B – With Dropout
+# -------------------------------
+model_dropout = Sequential([
+    Flatten(input_shape=(28, 28)),
+    Dense(256, activation='relu'),
+    Dropout(0.3),
+    Dense(128, activation='relu'),
+    Dropout(0.3),
+    Dense(10, activation='softmax')
+])
+
+model_dropout.compile(
+    optimizer=Adam(learning_rate=1e-3),
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# -------------------------------
+# Train both models
+# -------------------------------
+history_no_dropout = model_no_dropout.fit(
+    x_train, y_train,
+    epochs=6,
+    batch_size=128,
+    validation_split=0.1
+)
+
+history_dropout = model_dropout.fit(
+    x_train, y_train,
+    epochs=6,
+    batch_size=128,
+    validation_split=0.1
+)
+
+# -------------------------------
+# Evaluate on test data
+# -------------------------------
+test_loss_no_dropout, test_acc_no_dropout = model_no_dropout.evaluate(x_test, y_test)
+test_loss_dropout, test_acc_dropout = model_dropout.evaluate(x_test, y_test)
+
+print("Test accuracy without dropout:", test_acc_no_dropout)
+print("Test accuracy with dropout:", test_acc_dropout)
 
