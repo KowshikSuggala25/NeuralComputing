@@ -1,1 +1,289 @@
+# ============================================================
+# 8.1 Implement an LSTM Network for Time-Series Forecasting
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Generate sine wave dataset
+# ------------------------------------------------------------
+x = np.linspace(0, 100, 500)
+data = np.sin(x)
+
+# Plot original sine wave
+plt.figure(figsize=(10, 4))
+plt.plot(data, label="Original Sine Wave")
+plt.title("Sine Wave Dataset")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Prepare training data using sliding window
+# ------------------------------------------------------------
+sequence_length = 20
+X, y = [], []
+
+for i in range(len(data) - sequence_length):
+    X.append(data[i:i + sequence_length])
+    y.append(data[i + sequence_length])
+
+X = np.array(X).reshape(-1, sequence_length, 1)
+y = np.array(y)
+
+print("Input shape:", X.shape)
+print("Target shape:", y.shape)
+
+# ------------------------------------------------------------
+# Build LSTM model
+# ------------------------------------------------------------
+model = Sequential([
+    LSTM(
+        units=64,
+        return_sequences=False,
+        input_shape=(sequence_length, 1)
+    ),
+    Dense(1)
+])
+
+# ------------------------------------------------------------
+# Compile model
+# ------------------------------------------------------------
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss='mse'
+)
+
+model.summary()
+
+# ------------------------------------------------------------
+# Train model
+# ------------------------------------------------------------
+history = model.fit(
+    X,
+    y,
+    epochs=20,
+    batch_size=16,
+    verbose=1
+)
+
+# ------------------------------------------------------------
+# Predict future values
+# ------------------------------------------------------------
+pred = model.predict(X)
+
+print("\nExample predictions:")
+print(pred[:10])
+
+# ------------------------------------------------------------
+# Visualization: Actual vs Predicted
+# ------------------------------------------------------------
+plt.figure(figsize=(10, 4))
+plt.plot(y, label="Actual Sine Values")
+plt.plot(pred.flatten(), label="Predicted Values")
+plt.title("LSTM Sine Wave Prediction")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 8.2 Train an LSTM on a Sequence Prediction Task (Sine Wave)
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Generate sine wave dataset
+# ------------------------------------------------------------
+x = np.linspace(0, 100, 500)
+data = np.sin(x)
+
+# Plot original sine wave
+plt.figure(figsize=(10, 4))
+plt.plot(data, label="Original Sine Wave")
+plt.title("Sine Wave Dataset")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Prepare training data using sliding window
+# ------------------------------------------------------------
+sequence_length = 25   # try 10, 25, 50
+X, y = [], []
+
+for i in range(len(data) - sequence_length):
+    X.append(data[i:i + sequence_length])
+    y.append(data[i + sequence_length])
+
+X = np.array(X).reshape(-1, sequence_length, 1)
+y = np.array(y)
+
+print("Input shape:", X.shape)
+print("Target shape:", y.shape)
+
+# ------------------------------------------------------------
+# Build LSTM model
+# ------------------------------------------------------------
+model = Sequential([
+    LSTM(
+        units=64,                 # try 32, 64, 128
+        input_shape=(sequence_length, 1)
+    ),
+    Dense(1)
+])
+
+# ------------------------------------------------------------
+# Compile model
+# ------------------------------------------------------------
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss='mse'
+)
+
+model.summary()
+
+# ------------------------------------------------------------
+# Train the LSTM
+# ------------------------------------------------------------
+history = model.fit(
+    X,
+    y,
+    epochs=25,
+    batch_size=16,
+    verbose=1
+)
+
+# ------------------------------------------------------------
+# Predict future values
+# ------------------------------------------------------------
+pred = model.predict(X)
+
+print("\nFirst 10 predictions:")
+print(pred[:10])
+
+# ------------------------------------------------------------
+# Visualization: Actual vs Predicted
+# ------------------------------------------------------------
+plt.figure(figsize=(10, 4))
+plt.plot(y, label="Actual Values")
+plt.plot(pred.flatten(), label="Predicted Values")
+plt.title("LSTM Sequence Prediction on Sine Wave")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 8.3 Compare Standard RNN vs LSTM on Sine Wave Prediction
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, LSTM, Dense
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Generate sine wave dataset
+# ------------------------------------------------------------
+x = np.linspace(0, 100, 500)
+data = np.sin(x)
+
+# ------------------------------------------------------------
+# Prepare dataset using sliding window
+# ------------------------------------------------------------
+sequence_length = 25   # Try 75 to exaggerate difference
+X, y = [], []
+
+for i in range(len(data) - sequence_length):
+    X.append(data[i:i + sequence_length])
+    y.append(data[i + sequence_length])
+
+X = np.array(X).reshape(-1, sequence_length, 1)
+y = np.array(y)
+
+print("Input shape:", X.shape)
+print("Target shape:", y.shape)
+
+# ------------------------------------------------------------
+# Train Standard RNN
+# ------------------------------------------------------------
+rnn_model = Sequential([
+    SimpleRNN(64, input_shape=(sequence_length, 1)),
+    Dense(1)
+])
+
+rnn_model.compile(
+    optimizer=tf.keras.optimizers.Adam(0.001),
+    loss='mse'
+)
+
+print("\nTraining Standard RNN...")
+rnn_model.fit(X, y, epochs=25, batch_size=16, verbose=0)
+
+rnn_loss = rnn_model.evaluate(X, y, verbose=0)
+rnn_pred = rnn_model.predict(X, verbose=0)
+
+# ------------------------------------------------------------
+# Train LSTM
+# ------------------------------------------------------------
+lstm_model = Sequential([
+    LSTM(64, input_shape=(sequence_length, 1)),
+    Dense(1)
+])
+
+lstm_model.compile(
+    optimizer=tf.keras.optimizers.Adam(0.001),
+    loss='mse'
+)
+
+print("Training LSTM...")
+lstm_model.fit(X, y, epochs=25, batch_size=16, verbose=0)
+
+lstm_loss = lstm_model.evaluate(X, y, verbose=0)
+lstm_pred = lstm_model.predict(X, verbose=0)
+
+# ------------------------------------------------------------
+# Print loss comparison
+# ------------------------------------------------------------
+print("\n================= LOSS COMPARISON =================")
+print("RNN Loss :", rnn_loss)
+print("LSTM Loss:", lstm_loss)
+
+# ------------------------------------------------------------
+# Visualization: Compare predictions
+# ------------------------------------------------------------
+plt.figure(figsize=(12, 5))
+plt.plot(y, label="Actual Sine Values", alpha=0.6)
+plt.plot(rnn_pred.flatten(), label="RNN Prediction", linestyle='--')
+plt.plot(lstm_pred.flatten(), label="LSTM Prediction")
+plt.title("RNN vs LSTM Sine Wave Prediction")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
 
