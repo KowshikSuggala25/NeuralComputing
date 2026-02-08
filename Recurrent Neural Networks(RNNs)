@@ -1,1 +1,292 @@
+# ============================================================
+# 7.1 Simple RNN for Time-Series Prediction (Sine Wave)
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, SimpleRNN
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Generate sine wave dataset
+# ------------------------------------------------------------
+x = np.linspace(0, 100, 500)
+data = np.sin(x)
+
+# Plot original sine wave
+plt.figure(figsize=(10, 4))
+plt.plot(data, label="Original Sine Wave")
+plt.title("Sine Wave Dataset")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Prepare training data using sliding window
+# ------------------------------------------------------------
+sequence_length = 10
+X, y = [], []
+
+for i in range(len(data) - sequence_length):
+    X.append(data[i:i + sequence_length])
+    y.append(data[i + sequence_length])
+
+X = np.array(X)
+y = np.array(y)
+
+# Reshape input for RNN: (samples, timesteps, features)
+X = X.reshape((X.shape[0], X.shape[1], 1))
+
+print("Input shape:", X.shape)
+print("Target shape:", y.shape)
+
+# ------------------------------------------------------------
+# Build RNN model
+# ------------------------------------------------------------
+model = Sequential([
+    SimpleRNN(
+        units=32,
+        activation='tanh',
+        input_shape=(sequence_length, 1)
+    ),
+    Dense(1)
+])
+
+# ------------------------------------------------------------
+# Compile model
+# ------------------------------------------------------------
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss='mse'
+)
+
+model.summary()
+
+# ------------------------------------------------------------
+# Train model
+# ------------------------------------------------------------
+history = model.fit(
+    X,
+    y,
+    epochs=20,
+    batch_size=16,
+    verbose=1
+)
+
+# ------------------------------------------------------------
+# Predict next values
+# ------------------------------------------------------------
+pred = model.predict(X)
+
+print("\nExample predictions:")
+print(pred[:10])
+
+# ------------------------------------------------------------
+# Visualization: Actual vs Predicted
+# ------------------------------------------------------------
+plt.figure(figsize=(10, 4))
+plt.plot(y, label="Actual Sine Values")
+plt.plot(pred.flatten(), label="Predicted Values")
+plt.title("RNN Sine Wave Prediction")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 7.2 Experiment with Different Sequence Lengths and Hidden Units
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, Dense
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Generate sine wave dataset
+# ------------------------------------------------------------
+x = np.linspace(0, 100, 500)
+data = np.sin(x)
+
+# ------------------------------------------------------------
+# Prepare dataset using sliding window
+# ------------------------------------------------------------
+def prepare_data(sequence_length):
+    X, y = [], []
+    for i in range(len(data) - sequence_length):
+        X.append(data[i:i + sequence_length])
+        y.append(data[i + sequence_length])
+    X = np.array(X).reshape(-1, sequence_length, 1)
+    y = np.array(y)
+    return X, y
+
+# ------------------------------------------------------------
+# Run experiment for given configuration
+# ------------------------------------------------------------
+def run_experiment(sequence_length, hidden_units):
+    print(f"\nTesting configuration:")
+    print(f"Sequence Length = {sequence_length}, Hidden Units = {hidden_units}")
+
+    X, y = prepare_data(sequence_length)
+
+    model = Sequential([
+        SimpleRNN(
+            hidden_units,
+            activation='tanh',
+            input_shape=(sequence_length, 1)
+        ),
+        Dense(1)
+    ])
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss='mse'
+    )
+
+    history = model.fit(
+        X,
+        y,
+        epochs=15,
+        batch_size=16,
+        verbose=0
+    )
+
+    loss = model.evaluate(X, y, verbose=0)
+    print(f"Final MSE Loss: {loss:.6f}")
+
+    # Predict for visualization
+    predictions = model.predict(X, verbose=0)
+
+    return y, predictions.flatten()
+
+# ------------------------------------------------------------
+# Run multiple experiments
+# ------------------------------------------------------------
+configs = [
+    (5, 16),
+    (10, 32),
+    (20, 64)
+]
+
+results = {}
+
+for seq_len, hidden_units in configs:
+    y_true, y_pred = run_experiment(seq_len, hidden_units)
+    results[(seq_len, hidden_units)] = (y_true, y_pred)
+
+# ------------------------------------------------------------
+# Visualization: Compare predictions
+# ------------------------------------------------------------
+plt.figure(figsize=(12, 6))
+plt.plot(data, label="Original Sine Wave", alpha=0.6)
+
+for (seq_len, hidden_units), (y_true, y_pred) in results.items():
+    plt.plot(
+        range(seq_len, seq_len + len(y_pred)),
+        y_pred,
+        label=f"seq={seq_len}, units={hidden_units}"
+    )
+
+plt.title("Effect of Sequence Length and Hidden Units on RNN Prediction")
+plt.xlabel("Time Step")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 7.3 Analyze the Vanishing Gradient Problem in RNNs
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, Dense
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Generate sine wave dataset
+# ------------------------------------------------------------
+x = np.linspace(0, 100, 500)
+data = np.sin(x)
+
+# ------------------------------------------------------------
+# Prepare dataset with long sequence length
+# ------------------------------------------------------------
+sequence_length = 20   # Try 50 or 100 to exaggerate vanishing
+X, y = [], []
+
+for i in range(len(data) - sequence_length):
+    X.append(data[i:i + sequence_length])
+    y.append(data[i + sequence_length])
+
+X = np.array(X).reshape(-1, sequence_length, 1)
+y = np.array(y)
+
+print("Input shape:", X.shape)
+print("Target shape:", y.shape)
+
+# ------------------------------------------------------------
+# Build deep RNN model (stacked RNNs)
+# ------------------------------------------------------------
+model = Sequential([
+    SimpleRNN(
+        32,
+        activation='tanh',
+        return_sequences=True,
+        input_shape=(sequence_length, 1)
+    ),
+    SimpleRNN(32, activation='tanh'),
+    Dense(1)
+])
+
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+
+# ------------------------------------------------------------
+# Custom training loop to track gradients
+# ------------------------------------------------------------
+epochs = 5
+gradient_history = []
+
+for epoch in range(epochs):
+    with tf.GradientTape() as tape:
+        y_pred = model(X, training=True)
+        loss = tf.reduce_mean(tf.square(y_pred - y))
+
+    gradients = tape.gradient(loss, model.trainable_variables)
+
+    print(f"\nEpoch {epoch + 1}")
+    grad_means = []
+
+    for var, grad in zip(model.trainable_variables, gradients):
+        grad_mean = tf.reduce_mean(tf.abs(grad)).numpy()
+        grad_means.append(grad_mean)
+        print(f"{var.name:<40} | Mean |grad| = {grad_mean:.8f}")
+
+    gradient_history.append(grad_means)
+
+    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+# ------------------------------------------------------------
+# Plot gradient decay (average across variables)
+# ------------------------------------------------------------
+avg_gradients = [np.mean(g) for g in gradient_history]
+
+plt.figure(figsize=(8, 4))
+plt.plot(avg_gradients, marker='o')
+plt.title("Vanishing Gradient Effect in RNN")
+plt.xlabel("Epoch")
+plt.ylabel("Average Gradient Magnitude")
+plt.grid(True)
+plt.show()
 
