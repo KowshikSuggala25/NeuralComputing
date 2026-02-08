@@ -1,1 +1,169 @@
+#3.1
+# Import necessary library
+import numpy as np
+
+# -------------------------------
+# Input data (AND gate)
+# -------------------------------
+X = np.array([[0, 0],
+              [0, 1],
+              [1, 0],
+              [1, 1]])
+
+y = np.array([0, 0, 0, 1])  # AND gate output
+
+# -------------------------------
+# Initialize weights and bias
+# -------------------------------
+np.random.seed(42)
+weights = np.random.randn(2) * 0.01
+bias = np.random.randn() * 0.01
+
+# Parameters
+learning_rate = 0.1
+epochs = 10
+
+# -------------------------------
+# Training loop using SGD
+# -------------------------------
+for epoch in range(epochs):
+    for i in range(len(X)):
+        # Forward pass
+        z = np.dot(X[i], weights) + bias
+        pred = 1 if z >= 0 else 0
+
+        # Error calculation
+        error = y[i] - pred
+
+        # Parameter update (SGD)
+        weights += learning_rate * error * X[i]
+        bias += learning_rate * error
+
+# -------------------------------
+# Display trained parameters
+# -------------------------------
+print("Trained Weights:", weights)
+print("Trained Bias:", bias)
+
+# -------------------------------
+# Predictions after training
+# -------------------------------
+print("\nPredictions after training:")
+for i in range(len(X)):
+    z = np.dot(X[i], weights) + bias
+    pred = 1 if z >= 0 else 0
+    print(f"Input: {X[i]} -> Predicted Output: {pred}")
+
+
+#3.2
+# Importing the library
+import numpy as np
+
+# Input data (AND gate)
+X = np.array([[0, 0],
+              [0, 1],
+              [1, 0],
+              [1, 1]])
+
+y = np.array([0, 0, 0, 1])
+
+# Function to train perceptron with given learning rate and batch size
+def train_perceptron(learning_rate, batch_size):
+    np.random.seed(42)
+    weights = np.random.randn(2) * 0.01
+    bias = np.random.randn() * 0.01
+    epochs = 10
+
+    for epoch in range(epochs):
+        for i in range(0, len(X), batch_size):
+            X_batch = X[i:i + batch_size]
+            y_batch = y[i:i + batch_size]
+
+            weight_update = np.zeros_like(weights)
+            bias_update = 0
+
+            for j in range(len(X_batch)):
+                z = np.dot(X_batch[j], weights) + bias
+                pred = 1 if z >= 0 else 0
+                error = y_batch[j] - pred
+
+                weight_update += learning_rate * error * X_batch[j]
+                bias_update += learning_rate * error
+
+            # Apply average batch update
+            weights += weight_update / batch_size
+            bias += bias_update / batch_size
+
+    # Output results
+    print(f"\nLearning Rate: {learning_rate}, Batch Size: {batch_size}")
+    print("Trained Weights:", weights)
+    print("Trained Bias:", bias)
+
+    for i in range(len(X)):
+        z = np.dot(X[i], weights) + bias
+        pred = 1 if z >= 0 else 0
+        print(f"Input: {X[i]} -> Predicted: {pred}")
+
+# Try different combinations
+train_perceptron(0.1, 1)   # SGD
+train_perceptron(0.1, 2)   # Mini-batch
+train_perceptron(0.5, 1)   # High learning rate SGD
+train_perceptron(0.01, 4)  # Small learning rate, full batch
+
+
+#3.3
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import accuracy_score
+
+# Load dataset
+iris = load_iris()
+X, y = iris.data, iris.target
+
+# Standardize features
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# ----------------------------------
+# SGD (batch size = 1)
+# ----------------------------------
+sgd_clf = SGDClassifier(
+    loss='log_loss',
+    learning_rate='constant',
+    eta0=0.01,
+    max_iter=1000,
+    random_state=42
+)
+
+sgd_clf.fit(X_train, y_train)
+sgd_pred = sgd_clf.predict(X_test)
+sgd_accuracy = accuracy_score(y_test, sgd_pred)
+
+print("SGD Accuracy:", sgd_accuracy)
+# ----------------------------------
+# Mini-Batch Gradient Descent
+# ----------------------------------
+mini_batch_clf = SGDClassifier(
+    loss='log_loss',
+    learning_rate='constant',
+    eta0=0.01,
+    max_iter=1000,
+    average=True,   # enables mini-batch style averaging
+    random_state=42
+)
+
+mini_batch_clf.fit(X_train, y_train)
+mini_pred = mini_batch_clf.predict(X_test)
+mini_accuracy = accuracy_score(y_test, mini_pred)
+
+print("Mini-Batch Accuracy:", mini_accuracy)
+
 
