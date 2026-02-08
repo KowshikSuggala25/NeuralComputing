@@ -1,1 +1,256 @@
+# 5.1
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import numpy as np
+from sklearn.model_selection import train_test_split
+# Generate square image
+def generate_square():
+    img = np.zeros((32, 32))
+    img[8:24, 8:24] = 1
+    return img
+
+# Generate circle image
+def generate_circle():
+    img = np.zeros((32, 32))
+    rr, cc = np.ogrid[:32, :32]
+    mask = (rr - 16)**2 + (cc - 16)**2 <= 8**2
+    img[mask] = 1
+    return img
+
+# Create dataset
+X = []
+y = []
+
+for i in range(200):
+    X.append(generate_square())
+    y.append(0)
+    X.append(generate_circle())
+    y.append(1)
+
+X = np.array(X).reshape(-1, 32, 32, 1)
+y = np.array(y)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+model = models.Sequential([
+    layers.Conv2D(16, (3,3), activation='relu', input_shape=(32,32,1)),
+    layers.MaxPooling2D((2,2)),
+
+    layers.Conv2D(32, (3,3), activation='relu'),
+    layers.MaxPooling2D((2,2)),
+
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(2, activation='softmax')
+])
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+model.summary()
+model.fit(
+    X_train,
+    y_train,
+    epochs=10,
+    batch_size=16,
+    validation_split=0.1
+)
+test_loss, test_accuracy = model.evaluate(X_test, y_test)
+print("Test Accuracy:", test_accuracy)
+
+
+# =========================================
+# 5.2 Train a CNN on MNIST Dataset
+# =========================================
+
+# Import required libraries
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+
+# -----------------------------------------
+# Load MNIST dataset
+# -----------------------------------------
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+# Normalize and reshape data
+X_train = X_train.reshape(-1, 28, 28, 1) / 255.0
+X_test = X_test.reshape(-1, 28, 28, 1) / 255.0
+
+print("Training data shape:", X_train.shape)
+print("Testing data shape:", X_test.shape)
+
+# -----------------------------------------
+# Build CNN model
+# -----------------------------------------
+model = models.Sequential([
+    layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    layers.MaxPooling2D((2,2)),
+
+    layers.Conv2D(64, (3,3), activation='relu'),
+    layers.MaxPooling2D((2,2)),
+
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(10, activation='softmax')
+])
+
+# -----------------------------------------
+# Compile the model
+# -----------------------------------------
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+model.summary()
+
+# -----------------------------------------
+# Train the model
+# -----------------------------------------
+history = model.fit(
+    X_train,
+    y_train,
+    epochs=5,
+    batch_size=32,
+    validation_split=0.1
+)
+
+# -----------------------------------------
+# Evaluate on test data
+# -----------------------------------------
+test_loss, test_acc = model.evaluate(X_test, y_test)
+print("\nTest accuracy:", test_acc)
+
+# -----------------------------------------
+# Plot training & validation accuracy
+# -----------------------------------------
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.title("Training vs Validation Accuracy")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 5.3 Visualize Filters and Feature Maps Learned by a CNN
+# ============================================================
+
+# Import required libraries
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# Load and preprocess MNIST dataset
+# ------------------------------------------------------------
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+X_train = X_train.reshape(-1, 28, 28, 1) / 255.0
+X_test = X_test.reshape(-1, 28, 28, 1) / 255.0
+
+print("Training samples:", X_train.shape)
+print("Testing samples:", X_test.shape)
+
+# ------------------------------------------------------------
+# Build CNN model
+# ------------------------------------------------------------
+model = models.Sequential([
+    layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    layers.MaxPooling2D((2,2)),
+
+    layers.Conv2D(64, (3,3), activation='relu'),
+    layers.MaxPooling2D((2,2)),
+
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(10, activation='softmax')
+])
+
+# ------------------------------------------------------------
+# Compile model
+# ------------------------------------------------------------
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+model.summary()
+
+# ------------------------------------------------------------
+# Train the model
+# ------------------------------------------------------------
+print("\nTraining model...")
+model.fit(X_train, y_train, epochs=3, batch_size=32)
+
+# ------------------------------------------------------------
+# Evaluate model
+# ------------------------------------------------------------
+test_loss, test_acc = model.evaluate(X_test, y_test)
+print("\nTest accuracy:", test_acc)
+
+print("\n====================================\n")
+
+# ============================================================
+# VISUALIZE LEARNED FILTERS (FIRST CONVOLUTION LAYER)
+# ============================================================
+
+print("Visualizing filters from first Conv layer...")
+
+filters, biases = model.layers[0].get_weights()
+
+# Normalize filter values to [0,1] for visualization
+f_min, f_max = filters.min(), filters.max()
+filters = (filters - f_min) / (f_max - f_min)
+
+num_filters = 8  # visualize first 8 filters
+
+for i in range(num_filters):
+    filter_img = filters[:, :, 0, i]
+    plt.imshow(filter_img, cmap='gray')
+    plt.title(f"Filter {i}")
+    plt.axis('off')
+    plt.show()
+
+# ============================================================
+# VISUALIZE FEATURE MAPS (ACTIVATIONS)
+# ============================================================
+
+# Choose a test image
+img = X_test[7]
+img_input = np.expand_dims(img, axis=0)
+
+# Create a model that outputs activations
+layer_outputs = [layer.output for layer in model.layers[:2]]
+activation_model = models.Model(inputs=model.input, outputs=layer_outputs)
+
+print("Generating feature maps...")
+activations = activation_model.predict(img_input)
+
+first_layer_activation = activations[0]
+
+num_maps = 8  # visualize first 8 feature maps
+
+for i in range(num_maps):
+    plt.imshow(first_layer_activation[0, :, :, i], cmap='viridis')
+    plt.title(f"Feature Map {i}")
+    plt.axis('off')
+    plt.show()
+
+# ============================================================
+# Show original image
+# ============================================================
+
+plt.imshow(img.squeeze(), cmap='gray')
+plt.title("Original Input Image")
+plt.axis('off')
+plt.show()
 
