@@ -1,1 +1,159 @@
+#2.1
+from sklearn.neural_network import MLPClassifier
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+# Load dataset
+data = load_iris()
+X = data.data      # Input features
+y = data.target    # Output labels
+
+# Split dataset into training and testing
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=1
+)
+
+# -------------------------------
+# MLP Model 1: Hidden layers (10, 5)
+# -------------------------------
+mlp1 = MLPClassifier(
+    hidden_layer_sizes=(10, 5),
+    activation='relu',
+    solver='adam',
+    random_state=1,
+    max_iter=1000
+)
+
+mlp1.fit(X_train, y_train)
+y_pred1 = mlp1.predict(X_test)
+accuracy1 = accuracy_score(y_test, y_pred1)
+
+print("Accuracy with hidden layers (10, 5):", accuracy1)
+
+#2.2
+from sklearn.neural_network import MLPClassifier
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import time
+
+# Load dataset
+data = load_iris()
+X = data.data
+y = data.target
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=1
+)
+
+# --------------------------------------
+# Model 1: Backpropagation using ADAM
+# --------------------------------------
+start_time = time.time()
+
+mlp_adam = MLPClassifier(
+    hidden_layer_sizes=(10, 5),
+    learning_rate_init=0.01,
+    max_iter=300,
+    solver='adam',
+    verbose=True,
+    random_state=1
+)
+
+mlp_adam.fit(X_train, y_train)
+
+adam_time = time.time() - start_time
+
+y_pred_adam = mlp_adam.predict(X_test)
+adam_accuracy = accuracy_score(y_test, y_pred_adam)
+
+print("\nADAM Solver Accuracy:", adam_accuracy)
+print("ADAM Training Time:", adam_time, "seconds")
+
+#2.3
+# Import required libraries
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
+# Load Iris dataset
+iris = load_iris()
+X = iris.data        # Features
+y = iris.target     # Labels
+
+print("Target Names:", iris.target_names)
+
+# -------------------------------
+# Preprocessing using StandardScaler
+# -------------------------------
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
+
+print("\nUsing StandardScaler")
+print("Training data shape:", X_train.shape)
+print("Testing data shape:", X_test.shape)
+
+# -------------------------------
+# Try: Preprocessing using MinMaxScaler
+# -------------------------------
+minmax_scaler = MinMaxScaler()
+X_minmax = minmax_scaler.fit_transform(X)
+
+X_train_mm, X_test_mm, y_train_mm, y_test_mm = train_test_split(
+    X_minmax, y, test_size=0.2, random_state=42
+)
+
+print("\nUsing MinMaxScaler")
+print("Training data shape:", X_train_mm.shape)
+print("Testing data shape:", X_test_mm.shape)
+
+
+#2.4
+# Import required libraries
+from sklearn.neural_network import MLPClassifier
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+
+# Load and preprocess dataset
+iris = load_iris()
+X, y = iris.data, iris.target
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
+
+# -----------------------------------
+# Train MLP with learning_rate = 0.01
+# -----------------------------------
+mlp = MLPClassifier(
+    hidden_layer_sizes=(10, 5),
+    learning_rate_init=0.01,
+    max_iter=300,
+    solver='adam',
+    random_state=1
+)
+
+mlp.fit(X_train, y_train)
+
+# -----------------------------------
+# Plot Training Loss Curve
+# -----------------------------------
+plt.plot(mlp.loss_curve_)
+plt.title("Training Loss Convergence Curve")
+plt.xlabel("Iterations")
+plt.ylabel("Loss")
+plt.grid(True)
+plt.show()
 
