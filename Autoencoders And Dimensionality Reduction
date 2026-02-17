@@ -1,1 +1,386 @@
+# ============================================================
+# 10.1 Implement a Basic Autoencoder (Dimensionality Reduction)
+# ============================================================
 
+# Import required libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# ------------------------------------------------------------
+# Generate synthetic dataset (2D clustered points)
+# ------------------------------------------------------------
+np.random.seed(42)
+
+X_train = np.vstack([
+    np.random.normal([0, 0], 0.1, (100, 2)),
+    np.random.normal([1, 1], 0.1, (100, 2)),
+    np.random.normal([0, 1], 0.1, (100, 2)),
+    np.random.normal([1, 0], 0.1, (100, 2))
+])
+
+X_test = X_train.copy()
+
+# Plot original dataset
+plt.figure(figsize=(5,5))
+plt.scatter(X_train[:,0], X_train[:,1], c='blue')
+plt.title("Original Dataset")
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Autoencoder architecture
+# ------------------------------------------------------------
+input_dim = X_train.shape[1]
+latent_dim = 1   # Try 1, 2, 3
+
+# Encoder
+input_layer = tf.keras.Input(shape=(input_dim,))
+encoder_hidden = layers.Dense(4, activation='relu')(input_layer)
+latent_layer = layers.Dense(latent_dim, activation='relu')(encoder_hidden)
+
+# Decoder
+decoder_hidden = layers.Dense(4, activation='relu')(latent_layer)
+output_layer = layers.Dense(input_dim, activation='linear')(decoder_hidden)
+
+# Autoencoder model
+autoencoder = models.Model(input_layer, output_layer)
+
+# Separate encoder model (for visualization)
+encoder = models.Model(input_layer, latent_layer)
+
+# Compile
+autoencoder.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),
+    loss='mse'
+)
+
+autoencoder.summary()
+
+# ------------------------------------------------------------
+# Train autoencoder
+# ------------------------------------------------------------
+history = autoencoder.fit(
+    X_train,
+    X_train,
+    epochs=50,
+    batch_size=16,
+    validation_data=(X_test, X_test),
+    verbose=1
+)
+
+# ------------------------------------------------------------
+# Test reconstruction
+# ------------------------------------------------------------
+reconstructed = autoencoder.predict(X_test)
+
+# ------------------------------------------------------------
+# Visualize Original vs Reconstructed
+# ------------------------------------------------------------
+plt.figure(figsize=(6,6))
+plt.scatter(X_test[:,0], X_test[:,1], c='blue', label='Original')
+plt.scatter(reconstructed[:,0], reconstructed[:,1],
+            c='red', label='Reconstructed', alpha=0.5)
+
+plt.legend()
+plt.title("Original vs Reconstructed Data")
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Visualize latent space
+# ------------------------------------------------------------
+latent_values = encoder.predict(X_test)
+
+plt.figure(figsize=(6,4))
+plt.scatter(range(len(latent_values)), latent_values, c='green')
+plt.title("Latent Space Representation")
+plt.xlabel("Sample Index")
+plt.ylabel("Latent Value")
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Plot training loss
+# ------------------------------------------------------------
+plt.figure(figsize=(6,4))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title("Autoencoder Training Loss")
+plt.xlabel("Epoch")
+plt.ylabel("MSE Loss")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 10.2 Train an Autoencoder on MNIST Dataset
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# ------------------------------------------------------------
+# Load MNIST dataset
+# ------------------------------------------------------------
+(X_train, _), (X_test, _) = tf.keras.datasets.mnist.load_data()
+
+# Normalize data
+X_train = X_train.astype('float32') / 255.0
+X_test = X_test.astype('float32') / 255.0
+
+# Reshape to include channel dimension
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+
+print("Training shape:", X_train.shape)
+print("Testing shape:", X_test.shape)
+
+# ------------------------------------------------------------
+# Autoencoder architecture
+# ------------------------------------------------------------
+latent_dim = 32   # Try 16, 32, 64
+
+input_img = tf.keras.Input(shape=(28, 28, 1))
+
+# Encoder
+x = layers.Flatten()(input_img)
+x = layers.Dense(128, activation='relu')(x)
+latent = layers.Dense(latent_dim, activation='relu', name="latent_space")(x)
+
+# Decoder
+x = layers.Dense(128, activation='relu')(latent)
+x = layers.Dense(28*28, activation='sigmoid')(x)
+output_img = layers.Reshape((28, 28, 1))(x)
+
+# Autoencoder model
+autoencoder = models.Model(input_img, output_img)
+
+# Separate encoder model
+encoder = models.Model(input_img, latent)
+
+# Compile model
+autoencoder.compile(
+    optimizer='adam',
+    loss='mse'
+)
+
+autoencoder.summary()
+
+# ------------------------------------------------------------
+# Train autoencoder
+# ------------------------------------------------------------
+history = autoencoder.fit(
+    X_train,
+    X_train,
+    epochs=20,
+    batch_size=128,
+    validation_data=(X_test, X_test),
+    verbose=1
+)
+
+# ------------------------------------------------------------
+# Test reconstruction
+# ------------------------------------------------------------
+decoded_imgs = autoencoder.predict(X_test[:10])
+
+# ------------------------------------------------------------
+# Visualize Original vs Reconstructed Images
+# ------------------------------------------------------------
+n = 10
+plt.figure(figsize=(20, 4))
+
+for i in range(n):
+
+    # Original image
+    ax = plt.subplot(2, n, i + 1)
+    plt.imshow(X_test[i].reshape(28, 28), cmap='gray')
+    plt.title("Original")
+    plt.axis('off')
+
+    # Reconstructed image
+    ax = plt.subplot(2, n, i + 1 + n)
+    plt.imshow(decoded_imgs[i].reshape(28, 28), cmap='gray')
+    plt.title("Reconstructed")
+    plt.axis('off')
+
+plt.show()
+
+# ------------------------------------------------------------
+# Visualize latent space representation
+# ------------------------------------------------------------
+latent_values = encoder.predict(X_test[:1000])
+
+plt.figure(figsize=(8, 4))
+plt.plot(latent_values)
+plt.title("Latent Space Representation (Compressed Features)")
+plt.xlabel("Sample Index")
+plt.ylabel("Latent Value")
+plt.grid(True)
+plt.show()
+
+# ------------------------------------------------------------
+# Plot training loss curve
+# ------------------------------------------------------------
+plt.figure(figsize=(6, 4))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title("Autoencoder Training Loss Curve")
+plt.xlabel("Epoch")
+plt.ylabel("MSE Loss")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# ============================================================
+# 10.3 Use Autoencoder Latent Features for Clustering & Classification
+# ============================================================
+
+# Import required libraries
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score, accuracy_score, confusion_matrix
+from sklearn.linear_model import LogisticRegression
+from sklearn.decomposition import PCA
+
+# ------------------------------------------------------------
+# Load MNIST dataset
+# ------------------------------------------------------------
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+# Normalize
+X_train = X_train.astype('float32') / 255.0
+X_test = X_test.astype('float32') / 255.0
+
+# Flatten images
+X_train = X_train.reshape(-1, 28*28)
+X_test = X_test.reshape(-1, 28*28)
+
+print("Training shape:", X_train.shape)
+
+# ------------------------------------------------------------
+# Build Autoencoder
+# ------------------------------------------------------------
+latent_dim = 32   # Try 16, 32, 64
+
+input_img = tf.keras.Input(shape=(28*28,))
+
+# Encoder
+encoded = layers.Dense(128, activation='relu')(input_img)
+latent = layers.Dense(latent_dim, activation='relu', name='latent')(encoded)
+
+# Decoder
+decoded = layers.Dense(128, activation='relu')(latent)
+output = layers.Dense(28*28, activation='sigmoid')(decoded)
+
+# Autoencoder model
+autoencoder = models.Model(input_img, output)
+
+autoencoder.compile(
+    optimizer='adam',
+    loss='mse'
+)
+
+autoencoder.summary()
+
+# ------------------------------------------------------------
+# Train autoencoder
+# ------------------------------------------------------------
+autoencoder.fit(
+    X_train,
+    X_train,
+    epochs=10,
+    batch_size=128,
+    verbose=1
+)
+
+# ------------------------------------------------------------
+# Create encoder model
+# ------------------------------------------------------------
+encoder = models.Model(
+    autoencoder.input,
+    autoencoder.get_layer('latent').output
+)
+
+# ------------------------------------------------------------
+# Encode data into latent space
+# ------------------------------------------------------------
+X_train_encoded = encoder.predict(X_train)
+X_test_encoded = encoder.predict(X_test)
+
+print("Encoded shape:", X_train_encoded.shape)
+
+# ============================================================
+# PART 1: CLUSTERING using K-Means
+# ============================================================
+
+kmeans = KMeans(n_clusters=10, random_state=42)
+cluster_labels = kmeans.fit_predict(X_train_encoded)
+
+sil_score = silhouette_score(X_train_encoded, cluster_labels)
+
+print("\nClustering Results")
+print("-------------------")
+print("Silhouette Score:", sil_score)
+
+# ============================================================
+# PART 2: CLASSIFICATION using Logistic Regression
+# ============================================================
+
+clf = LogisticRegression(max_iter=500)
+clf.fit(X_train_encoded, y_train)
+
+y_pred = clf.predict(X_test_encoded)
+
+acc = accuracy_score(y_test, y_pred)
+
+print("\nClassification Results")
+print("----------------------")
+print("Classification Accuracy:", acc)
+
+# Confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6,5))
+plt.imshow(cm, cmap='Blues')
+plt.title("Confusion Matrix")
+plt.colorbar()
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.show()
+
+# ============================================================
+# PART 3: PCA Visualization of Latent Space
+# ============================================================
+
+pca = PCA(n_components=2)
+latent_2d = pca.fit_transform(X_train_encoded)
+
+plt.figure(figsize=(8,6))
+scatter = plt.scatter(
+    latent_2d[:,0],
+    latent_2d[:,1],
+    c=y_train,
+    cmap='tab10',
+    s=5
+)
+
+plt.colorbar(scatter)
+plt.title("2D PCA Visualization of Latent Space")
+plt.xlabel("PCA Component 1")
+plt.ylabel("PCA Component 2")
+plt.show()
