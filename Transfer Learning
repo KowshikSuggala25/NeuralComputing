@@ -1,0 +1,263 @@
+# ============================================================
+# 11.1 Google Colab Compatible Version
+# Load Pre-trained VGG16 and Extract Features
+# ============================================================
+
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications.vgg16 import preprocess_input
+
+# ------------------------------------------------------------
+# 1️⃣ Load CIFAR-10
+# ------------------------------------------------------------
+(X_train, y_train), _ = tf.keras.datasets.cifar10.load_data()
+
+img = X_train[0]
+
+# ------------------------------------------------------------
+# 2️⃣ Resize to 224x224 (Required for VGG16)
+# ------------------------------------------------------------
+img_resized = tf.image.resize(img, (224,224))
+
+# 🔥 FIX: Convert to writable NumPy array
+img_array = np.array(img_resized)
+img_array = np.expand_dims(img_array, axis=0)
+
+# ------------------------------------------------------------
+# 3️⃣ Preprocess for VGG16
+# ------------------------------------------------------------
+img_array = preprocess_input(img_array)
+
+# ------------------------------------------------------------
+# 4️⃣ Load VGG16
+# ------------------------------------------------------------
+model = VGG16(weights='imagenet', include_top=False, input_shape=(224,224,3))
+model.trainable = False
+
+# ------------------------------------------------------------
+# 5️⃣ Extract Features
+# ------------------------------------------------------------
+features = model.predict(img_array)
+
+print("Feature Shape:", features.shape)
+
+plt.imshow(img)
+plt.title("Original CIFAR Image")
+plt.axis("off")
+plt.show()
+
+
+# ============================================================
+# 11.2 Fine-tuning VGG16 on a New Dataset
+# ============================================================
+
+# ============================================================
+# 100% Memory Safe Fine-Tuning (No Full Resize in RAM)
+# ============================================================
+
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications.vgg16 import preprocess_input
+from tensorflow.keras import layers, models, optimizers
+
+# Load CIFAR-10
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.cifar10.load_data()
+
+# Use smaller subset (IMPORTANT)
+X_train = X_train[:4000]
+y_train = y_train[:4000]
+X_test = X_test[:1000]
+y_test = y_test[:1000]
+
+y_train = tf.keras.utils.to_categorical(y_train, 10)
+y_test = tf.keras.utils.to_categorical(y_test, 10)
+
+# -----------------------------------------
+# Create tf.data pipeline (SAFE WAY)
+# -----------------------------------------
+def preprocess(image, label):
+    image = tf.image.resize(image, (224,224))
+    image = preprocess_input(image)
+    return image, label
+
+train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+train_ds = train_ds.map(preprocess).batch(32).prefetch(1)
+
+test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+test_ds = test_ds.map(preprocess).batch(32).prefetch(1)
+
+# -----------------------------------------
+# Load VGG16
+# -----------------------------------------
+base_model = VGG16(weights='imagenet',
+                   include_top=False,
+                   input_shape=(224,224,3))
+
+base_model.trainable = False
+
+# Build model
+model = models.Sequential([
+    base_model,
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(10, activation='softmax')
+])
+
+model.compile(optimizer=optimizers.Adam(1e-4),
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train
+model.fit(train_ds, epochs=3)
+
+# Evaluate
+loss, acc = model.evaluate(test_ds)
+print("Test Accuracy:", acc)
+
+
+# ============================================================
+# 11.3 Evaluate Fine-Tuned CNN Performance (VGG16 + CIFAR-10)
+# ============================================================
+
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras import layers, models
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+
+# ------------------------------------------------------------
+# 1️⃣ Load CIFAR-10 Dataset
+# ------------------------------------------------------------
+(X_train, y_train), (X_test, y_test) = tf.keras.datasets.cifar10.load_data()
+
+X_train = X_train.astype('float32') / 255.
+X_test = X_test.astype('float32') / 255.
+
+y_train_1hot = tf.keras.utils.to_categorical(y_train, 10)
+y_test_1hot = tf.keras.utils.to_categorical(y_test, 10)
+
+print("Dataset Loaded ✔")
+
+# ------------------------------------------------------------
+# 2️⃣ Load Pretrained VGG16 (No Top Layer)
+# ------------------------------------------------------------
+base_model = VGG16(
+    weights='imagenet',
+    include_top=False,
+    input_shape=(32, 32, 3)
+)
+
+base_model.trainable = False  # Freeze initially
+
+print("Pretrained VGG16 Loaded ✔")
+
+# ------------------------------------------------------------
+# 3️⃣ Build Transfer Learning Model
+# ------------------------------------------------------------
+model = models.Sequential([
+    base_model,
+    layers.Flatten(),
+    layers.Dense(256, activation='relu'),
+    layers.Dropout(0.5),
+    layers.Dense(10, activation='softmax')
+])
+
+# ------------------------------------------------------------
+# 4️⃣ Train Classifier Head
+# ------------------------------------------------------------
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(1e-3),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+print("\nStage 1: Training classifier head...")
+history1 = model.fit(
+    X_train, y_train_1hot,
+    epochs=5,
+    batch_size=64,
+    validation_split=0.1
+)
+
+# ------------------------------------------------------------
+# 5️⃣ Fine-Tuning
+# ------------------------------------------------------------
+base_model.trainable = True
+
+# Freeze first few layers (optional)
+for layer in base_model.layers[:10]:
+    layer.trainable = False
+
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(1e-5),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+print("\nStage 2: Fine-tuning deeper layers...")
+history2 = model.fit(
+    X_train, y_train_1hot,
+    epochs=10,
+    batch_size=64,
+    validation_split=0.1
+)
+
+# ------------------------------------------------------------
+# 6️⃣ Final Evaluation
+# ------------------------------------------------------------
+print("\nFinal Evaluation on Test Data:")
+loss, accuracy = model.evaluate(X_test, y_test_1hot, verbose=0)
+print("Final Test Accuracy:", accuracy)
+print("Final Test Loss:", loss)
+
+# ------------------------------------------------------------
+# 7️⃣ Classification Report
+# ------------------------------------------------------------
+y_pred = model.predict(X_test)
+y_pred_labels = np.argmax(y_pred, axis=1)
+true_labels = y_test.reshape(-1)
+
+print("\nClassification Report:")
+print(classification_report(true_labels, y_pred_labels))
+
+# ------------------------------------------------------------
+# 8️⃣ Confusion Matrix
+# ------------------------------------------------------------
+cm = confusion_matrix(true_labels, y_pred_labels)
+
+plt.figure(figsize=(8,6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix — Fine-tuned VGG16")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# ------------------------------------------------------------
+# 9️⃣ Plot Accuracy & Loss Curves
+# ------------------------------------------------------------
+acc = history1.history['accuracy'] + history2.history['accuracy']
+val_acc = history1.history['val_accuracy'] + history2.history['val_accuracy']
+
+loss_curve = history1.history['loss'] + history2.history['loss']
+val_loss_curve = history1.history['val_loss'] + history2.history['val_loss']
+
+plt.figure(figsize=(12,4))
+
+plt.subplot(1,2,1)
+plt.plot(acc, label="Train Accuracy")
+plt.plot(val_acc, label="Validation Accuracy")
+plt.title("Accuracy Curve")
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(loss_curve, label="Train Loss")
+plt.plot(val_loss_curve, label="Validation Loss")
+plt.title("Loss Curve")
+plt.legend()
+
+plt.show()
+
