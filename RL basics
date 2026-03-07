@@ -1,0 +1,476 @@
+# ============================================
+# Q-Learning on a Simple GridWorld (4x4)
+# ============================================
+
+import numpy as np
+import random
+
+
+# --------------------------------------------
+# GridWorld Environment
+# --------------------------------------------
+
+class GridWorld:
+
+    def __init__(self, rows=4, cols=4, start=(0,0), goal=(3,3), obstacles=None,
+                 step_reward=-0.01, goal_reward=1.0):
+
+        self.rows = rows
+        self.cols = cols
+        self.start = start
+        self.goal = goal
+
+        self.obstacles = set(obstacles) if obstacles else set()
+
+        self.step_reward = step_reward
+        self.goal_reward = goal_reward
+
+        # actions: up, down, left, right
+        self.actions = [(-1,0),(1,0),(0,-1),(0,1)]
+        self.n_actions = len(self.actions)
+
+        self.reset()
+
+
+    def state_to_index(self,s):
+        return s[0]*self.cols + s[1]
+
+
+    def index_to_state(self,idx):
+        return (idx//self.cols, idx%self.cols)
+
+
+    def reset(self):
+        self.agent_pos=self.start
+        return self.state_to_index(self.agent_pos)
+
+
+    def step(self,action_idx):
+
+        move=self.actions[action_idx]
+
+        next_pos=(self.agent_pos[0]+move[0],
+                  self.agent_pos[1]+move[1])
+
+        r,c=next_pos
+
+        # out of grid -> stay
+        if r<0 or r>=self.rows or c<0 or c>=self.cols:
+            next_pos=self.agent_pos
+
+        # obstacle -> stay
+        if next_pos in self.obstacles:
+            next_pos=self.agent_pos
+
+        self.agent_pos=next_pos
+
+        done=self.agent_pos==self.goal
+
+        reward=self.goal_reward if done else self.step_reward
+
+        return self.state_to_index(self.agent_pos),reward,done
+
+
+    # Display learned policy
+    def render_policy(self,policy):
+
+        arrow={0:'↑',1:'↓',2:'←',3:'→'}
+
+        for r in range(self.rows):
+
+            row=[]
+
+            for c in range(self.cols):
+
+                s=(r,c)
+
+                if s in self.obstacles:
+                    row.append('X')
+
+                elif s==self.goal:
+                    row.append('G')
+
+                else:
+                    idx=self.state_to_index(s)
+                    row.append(arrow[policy[idx]])
+
+            print(" ".join(row))
+
+
+# --------------------------------------------
+# Q-Learning Training
+# --------------------------------------------
+
+def q_learning(env,episodes=2000,
+               alpha=0.5,
+               gamma=0.99,
+               epsilon=1.0,
+               epsilon_min=0.01,
+               epsilon_decay=0.995,
+               max_steps=100):
+
+    n_states=env.rows*env.cols
+
+    Q=np.zeros((n_states,env.n_actions))
+
+    episode_rewards=[]
+    success_history=[]
+
+    for ep in range(episodes):
+
+        s=env.reset()
+
+        total_r=0
+
+        done=False
+
+        for step in range(max_steps):
+
+            # epsilon-greedy
+            if random.random()<epsilon:
+                a=random.randrange(env.n_actions)
+            else:
+                a=int(np.argmax(Q[s]))
+
+            s_next,r,done=env.step(a)
+
+            total_r+=r
+
+            # Q-learning update
+            best_next=np.max(Q[s_next])
+
+            Q[s,a]+=alpha*(r+gamma*best_next-Q[s,a])
+
+            s=s_next
+
+            if done:
+                break
+
+
+        epsilon=max(epsilon_min,epsilon*epsilon_decay)
+
+        episode_rewards.append(total_r)
+
+        success_history.append(1 if done else 0)
+
+        # progress display
+        if (ep+1)%200==0:
+
+            avg_reward=np.mean(episode_rewards[-200:])
+            success_rate=np.mean(success_history[-200:])*100
+
+            print(f"Episode {ep+1:4d} | Avg reward: {avg_reward:.3f} | Success rate: {success_rate:.1f}% | epsilon: {epsilon:.3f}")
+
+
+    return Q,episode_rewards,success_history
+
+
+# --------------------------------------------
+# Example Run
+# --------------------------------------------
+
+obstacles={(1,1),(2,1)}
+
+env=GridWorld(rows=4,cols=4,
+              start=(0,0),
+              goal=(3,3),
+              obstacles=obstacles)
+
+Q,rewards,success=q_learning(env,
+                             episodes=3000,
+                             alpha=0.6,
+                             gamma=0.98,
+                             epsilon=1.0,
+                             epsilon_min=0.05,
+                             epsilon_decay=0.995,
+                             max_steps=50)
+
+
+# derive greedy policy
+policy=np.argmax(Q,axis=1)
+
+print("\nLearned Policy:")
+env.render_policy(policy)
+
+
+# Q values of start state
+start_idx=env.state_to_index(env.start)
+
+print("\nQ-values at start state:")
+print(Q[start_idx])
+
+                               # ============================================
+# Visualizing Q-Learning Policy in GridWorld
+# ============================================
+
+import numpy as np
+import random
+
+
+# --------------------------------------------
+# 1. GridWorld Environment
+# --------------------------------------------
+
+class GridWorld:
+
+    def __init__(self, rows=4, cols=4, start=(0,0), goal=(3,3), obstacles=None,
+                 step_reward=-0.01, goal_reward=1.0):
+
+        self.rows = rows
+        self.cols = cols
+        self.start = start
+        self.goal = goal
+        self.obstacles = set(obstacles) if obstacles else set()
+
+        self.step_reward = step_reward
+        self.goal_reward = goal_reward
+
+        # actions: up, down, left, right
+        self.actions = [(-1,0),(1,0),(0,-1),(0,1)]
+        self.n_actions = len(self.actions)
+
+        self.reset()
+
+
+    def state_to_index(self,s):
+        return s[0]*self.cols + s[1]
+
+
+    def index_to_state(self,idx):
+        return (idx//self.cols, idx%self.cols)
+
+
+    def reset(self):
+        self.agent_pos = self.start
+        return self.state_to_index(self.agent_pos)
+
+
+    def step(self,action_idx):
+
+        move = self.actions[action_idx]
+
+        next_pos = (self.agent_pos[0]+move[0],
+                    self.agent_pos[1]+move[1])
+
+        r,c = next_pos
+
+        # out of grid
+        if r<0 or r>=self.rows or c<0 or c>=self.cols:
+            next_pos = self.agent_pos
+
+        # obstacle
+        if next_pos in self.obstacles:
+            next_pos = self.agent_pos
+
+        self.agent_pos = next_pos
+
+        done = self.agent_pos == self.goal
+        reward = self.goal_reward if done else self.step_reward
+
+        return self.state_to_index(self.agent_pos), reward, done
+
+
+    # Policy Visualization
+    def render_policy(self,policy):
+
+        arrow = {0:'↑',1:'↓',2:'←',3:'→'}
+
+        for r in range(self.rows):
+
+            row=[]
+
+            for c in range(self.cols):
+
+                s=(r,c)
+                idx=self.state_to_index(s)
+
+                if s in self.obstacles:
+                    row.append('X')
+
+                elif s==self.goal:
+                    row.append('G')
+
+                else:
+                    row.append(arrow[policy[idx]])
+
+            print(" ".join(row))
+
+
+# --------------------------------------------
+# 2. Q-Learning Training
+# --------------------------------------------
+
+def q_learning(env,
+               episodes=3000,
+               alpha=0.6,
+               gamma=0.98,
+               epsilon=1.0,
+               epsilon_min=0.05,
+               epsilon_decay=0.995,
+               max_steps=50):
+
+    n_states = env.rows * env.cols
+
+    Q = np.zeros((n_states, env.n_actions))
+
+    for ep in range(episodes):
+
+        s = env.reset()
+
+        for step in range(max_steps):
+
+            # epsilon-greedy
+            if random.random() < epsilon:
+                a = random.randrange(env.n_actions)
+            else:
+                a = int(np.argmax(Q[s]))
+
+            s_next, r, done = env.step(a)
+
+            best_next = np.max(Q[s_next])
+
+            Q[s,a] += alpha*(r + gamma*best_next - Q[s,a])
+
+            s = s_next
+
+            if done:
+                break
+
+
+        epsilon = max(epsilon_min, epsilon * epsilon_decay)
+
+        if (ep+1) % 500 == 0:
+            print(f"Episode {ep+1}/{episodes}   epsilon={epsilon:.3f}")
+
+
+    return Q
+
+
+# --------------------------------------------
+# 3. Training + Visualization
+# --------------------------------------------
+
+print("Training Agent...")
+
+obstacles = {(1,1),(2,1)}
+
+env = GridWorld(rows=4,
+                cols=4,
+                start=(0,0),
+                goal=(3,3),
+                obstacles=obstacles)
+
+Q = q_learning(env)
+
+
+# Extract policy from Q-table
+policy = np.argmax(Q, axis=1)
+
+print("\nLearned Policy:")
+
+env.render_policy(policy)
+
+
+# Q-values at start state
+start_idx = env.state_to_index(env.start)
+
+print("\nQ-values at start state:")
+print(Q[start_idx])
+
+                               # ==============================================
+# Exploration vs Exploitation using Epsilon-Greedy
+# ==============================================
+
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+
+# ------------------------------------------------
+# Epsilon-Greedy Action Selection Function
+# ------------------------------------------------
+
+def epsilon_greedy(Q, state, epsilon):
+
+    n_actions = Q.shape[1]
+
+    if random.random() < epsilon:
+        action = random.randrange(n_actions)
+        decision = "Exploration (random)"
+    else:
+        action = int(np.argmax(Q[state]))
+        decision = "Exploitation (greedy)"
+
+    return action, decision
+
+
+# ------------------------------------------------
+# Dummy Q-table for demonstration
+# ------------------------------------------------
+
+Q = np.array([[0.2, 0.5, -0.1, 0.7]])  # 1 state, 4 actions
+
+state = 0
+
+
+# ------------------------------------------------
+# Epsilon Parameters
+# ------------------------------------------------
+
+epsilon = 1.0
+epsilon_min = 0.05
+epsilon_decay = 0.90
+
+episodes = 20
+
+
+epsilon_history = []
+
+
+print("Demonstrating Exploration vs Exploitation\n")
+
+
+# ------------------------------------------------
+# Simulation Loop
+# ------------------------------------------------
+
+for episode in range(episodes):
+
+    action, decision = epsilon_greedy(Q, state, epsilon)
+
+    epsilon_history.append(epsilon)
+
+    print(f"Episode {episode+1:2d} | epsilon={epsilon:.3f} | action={action} | {decision}")
+
+    # decay epsilon
+    epsilon = max(epsilon_min, epsilon * epsilon_decay)
+
+
+# ------------------------------------------------
+# Plot epsilon decay curve
+# ------------------------------------------------
+
+plt.figure(figsize=(6,4))
+
+plt.plot(epsilon_history, marker='o')
+
+plt.title("Epsilon Decay: Exploration → Exploitation")
+
+plt.xlabel("Episode")
+
+plt.ylabel("Epsilon")
+
+plt.grid(True)
+
+plt.show()
+
+
+# ------------------------------------------------
+# Show Best Action According to Q-table
+# ------------------------------------------------
+
+best_action = np.argmax(Q[state])
+
+print("\nBest action according to Q-table:", best_action)
+print("Q-values:", Q[state])
+                               
